@@ -1,8 +1,8 @@
 import time
 
 def process_logs(filename):
-    f = open(filename)
-    content = f.read()
+    with open(filename) as f:
+        content = f.read()
     errors = []
     for line in content.split("\n"):
         if "ERROR" in line:
