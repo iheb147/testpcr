@@ -1,12 +1,24 @@
 import json
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 inventory = []
 FILE = "data.json"
 
 def load_items():
-    f = open(FILE, "r")
-    data = f.read()
-    inventory = json.loads(data)
+    global inventory
+    try:
+        with open(FILE, "r") as f:
+            data = f.read()
+            inventory = json.loads(data)
+    except FileNotFoundError:
+        logger.warning(f"File {FILE} not found. Starting with empty inventory.")
+        inventory = []
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON from {FILE}: {e}")
+        inventory = []
     return inventory
 
 def add_item(name, price, qty):
