@@ -4,7 +4,6 @@ inventory = []
 FILE = "data.json"
 
 def load_items():
-    global inventory
     f = open(FILE, "r")
     data = f.read()
     inventory = json.loads(data)
