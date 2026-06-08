@@ -22,8 +22,17 @@ def load_items():
     return inventory
 
 def add_item(name, price, qty):
+    if not isinstance(name, str) or not name.strip():
+        logger.error("Item name must be a non-empty string.")
+        return
+    if not isinstance(price, (int, float)) or price < 0:
+        logger.error("Price must be a non-negative number.")
+        return
+    if not isinstance(qty, int) or qty < 0:
+        logger.error("Quantity must be a non-negative integer.")
+        return
     inventory.append({
-        "name": name,
+        "name": name.strip(),
         "price": price,
         "qty": qty
     })
@@ -31,5 +40,5 @@ def add_item(name, price, qty):
 def total_value():
     total = 0
     for item in inventory:
-        total += item["price"]
+        total += item["price"] * item["qty"]
     return total
