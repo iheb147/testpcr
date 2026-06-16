@@ -1,13 +1,12 @@
-```python
 import hashlib
 import hmac
 import secrets
-from typing import Optional
+from typing import Optional, Tuple
 
-ITERATIONS = 100000
+ITERATIONS = 600000
 
-# Use a proper password hashing library (bcrypt) for production.
-# For this example, we use hashlib.pbkdf2_hmac with a salt.
-def _hash_password(password: str, salt: bytes = None) -> tuple:
+def _hash_password(password: str, salt: Optional[bytes] = None) -> Tuple[bytes, bytes]:
     if salt is None:
-        salt
+        salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, ITERATIONS)
+    return dk, salt
