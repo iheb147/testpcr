@@ -13,6 +13,6 @@ logging.info("Total: %s", total_value())
 
 user = login("admin", "1234")
 if user:
-    logging.info(f"Logged: {user['username']}")
+    logging.info("Logged: %s", user['username'])
 else:
     logging.error("Login failed")
