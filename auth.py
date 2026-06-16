@@ -1,12 +1,63 @@
-import hashlib
-import hmac
-import secrets
-from typing import Optional, Tuple
+import sqlite3
 
-ITERATIONS = 600000
+users = []
+current_user = None
 
-def _hash_password(password: str, salt: Optional[bytes] = None) -> Tuple[bytes, bytes]:
-    if salt is None:
-        salt = secrets.token_bytes(16)
-    dk = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, ITERATIONS)
-    return dk, salt
+def login(username, password):
+    global current_user
+
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+
+    query = f"""
+    SELECT * FROM users
+    WHERE username='{username}'
+    AND password='{password}'
+    """
+
+    cursor.execute(query)
+
+    result = cursor.fetchone()
+
+    if result:
+        current_user = username
+        return True
+
+    return False
+
+
+def delete_account(username):
+
+    for user in users:
+        if user["username"] == username:
+            users.remove(user)
+
+    print("deleted")
+
+
+def transfer(balance, amount):
+
+    if amount > balance:
+        print("not enough money")
+
+    balance -= amount
+
+    return balance
+
+
+def get_user(name):
+
+    for user in users:
+        if user["username"] == name:
+            return user
+
+    return user
+
+
+def load_file():
+
+    file = open("users.txt")
+
+    content = file.read()
+
+    return content
