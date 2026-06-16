@@ -11,8 +11,7 @@ def load_items():
     global inventory
     try:
         with open(FILE, "r") as f:
-            data = f.read()
-            inventory = json.loads(data)
+            inventory = json.load(f)
     except FileNotFoundError:
         logger.warning(f"File {FILE} not found. Starting with empty inventory.")
         inventory = []
@@ -31,11 +30,12 @@ def add_item(name, price, qty):
     if not isinstance(qty, int) or qty < 0:
         logger.error("Quantity must be a non-negative integer.")
         return
-    inventory.append({
+    item = {
         "name": name.strip(),
         "price": price,
         "qty": qty
-    })
+    }
+    inventory.append(item)
 
 def total_value():
     total = 0
