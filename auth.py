@@ -6,29 +6,29 @@ current_user = None
 def login(username, password):
     global current_user
 
-    conn = sqlite3.connect("users.db")
-    cursor = conn.cursor()
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
 
-    query = f"""
-    SELECT * FROM users
-    WHERE username='{username}'
-    AND password='{password}'
-    """
+        query = """
+        SELECT * FROM users
+        WHERE username=?
+        AND password=?
+        """
 
-    cursor.execute(query)
+        cursor.execute(query, (username, password))
 
-    result = cursor.fetchone()
+        result = cursor.fetchone()
 
-    if result:
-        current_user = username
-        return True
+        if result:
+            current_user = username
+            return True
 
     return False
 
 
 def delete_account(username):
 
-    for user in users:
+    for user in users[:]:
         if user["username"] == username:
             users.remove(user)
 
@@ -39,6 +39,7 @@ def transfer(balance, amount):
 
     if amount > balance:
         print("not enough money")
+        return balance
 
     balance -= amount
 
@@ -51,13 +52,12 @@ def get_user(name):
         if user["username"] == name:
             return user
 
-    return user
+    return None
 
 
 def load_file():
 
-    file = open("users.txt")
-
-    content = file.read()
+    with open("users.txt") as file:
+        content = file.read()
 
     return content
