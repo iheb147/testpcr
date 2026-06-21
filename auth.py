@@ -27,23 +27,18 @@ def login(username, password):
 
 
 def delete_account(username):
-
-    for user in users[:]:
-        if user["username"] == username:
-            users.remove(user)
-
+    global users
+    users = [user for user in users if user["username"] != username]
     print("deleted")
 
 
 def transfer(balance, amount):
 
-    if amount > balance:
+    if amount <= 0 or amount > balance:
         print("not enough money")
         return balance
 
-    balance -= amount
-
-    return balance
+    return balance - amount
 
 
 def get_user(name):
@@ -57,7 +52,7 @@ def get_user(name):
 
 def load_file():
 
-    with open("users.txt") as file:
+    with open("users.txt", "r") as file:
         content = file.read()
 
     return content
