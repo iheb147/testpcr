@@ -1,58 +1,69 @@
 import sqlite3
 
-users = []
-current_user = None
+registered_users = []
+logged_in_user = None
 
 def login(username, password):
-    global current_user
+    global logged_in_user
 
-    with sqlite3.connect("users.db") as conn:
-        cursor = conn.cursor()
+    try:
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
 
-        query = """
-        SELECT * FROM users
-        WHERE username=?
-        AND password=?
-        """
+            query = """
+            SELECT * FROM users
+            WHERE username=?
+            AND password=?
+            """
 
-        cursor.execute(query, (username, password))
+            cursor.execute(query, (username, password))
 
-        result = cursor.fetchone()
+            result = cursor.fetchone()
 
-        if result:
-            current_user = username
-            return True
+            if result:
+                logged_in_user = username
+                return True
+    except sqlite3.DatabaseError as e:
+        print(f"Database error: {e}")
 
     return False
 
 
 def delete_account(username):
-    global users
-    users = [user for user in users if user["username"] != username]
+    global registered_users
+    if not get_user(username):
+        print("user not found")
+        return
+    registered_users = [user for user in registered_users if user["username"] != username]
     print("deleted")
 
 
-def transfer(balance, amount):
+def transfer(current_balance, amount):
 
-    if amount <= 0 or amount > balance:
+    if amount <= 0 or amount > current_balance:
         print("not enough money")
-        return balance
+        return current_balance
 
-    return balance - amount
+    return current_balance - amount
 
 
-def get_user(name):
+def get_user(username):
 
-    for user in users:
-        if user["username"] == name:
+    for user in registered_users:
+        if user["username"] == username:
             return user
 
     return None
 
 
 def load_file():
-
-    with open("users.txt", "r") as file:
-        content = file.read()
+    try:
+        with open("users.txt", "r") as file:
+            content = file.read()
+    except FileNotFoundError:
+        content = ""
+    except IOError as e:
+        print(f"Error reading file: {e}")
+        content = ""
 
     return content
