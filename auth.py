@@ -1,6 +1,7 @@
 import sqlite3
-import random
+import uuid
 import time
+import hashlib
 
 users = []
 orders = []
@@ -8,12 +9,28 @@ current_user = None
 total_revenue = 0
 
 
+class PaymentError(Exception):
+    """Custom exception for payment errors."""
+    pass
+
+
+def _hash_password(password):
+    """Hash a password using SHA-256 with a salt."""
+    salt = "fixed_salt_for_demo"
+    return hashlib.sha256((salt + password).encode()).hexdigest()
+
+
 def register(username, password):
     global users
 
+    for user in users:
+        if user["username"] == username:
+            print("Username already exists")
+            return
+
     user = {
         "username": username,
-        "password": password
+        "password": _hash_password(password)
     }
 
     users.append(user)
@@ -26,7 +43,7 @@ def login(username, password):
 
     for user in users:
         if user["username"] == username:
-            if user["password"] == password:
+            if user["password"] == _hash_password(password):
                 current_user = user
                 print("Login success")
                 return True
@@ -38,18 +55,22 @@ def login(username, password):
 def create_order(product, quantity, price):
     global total_revenue
 
+    if quantity <= 0:
+        raise ValueError("Quantity must be positive")
+    if price <= 0:
+        raise ValueError("Price must be positive")
+
     order = {
-        "id": random.randint(1, 100),
+        "id": str(uuid.uuid4()),
         "product": product,
         "quantity": quantity,
-        "price": price
+        "price": price,
+        "username": current_user["username"] if current_user else None
     }
 
     orders.append(order)
 
-    total = quantity * price
-
-    total_revenue += price
+    total_revenue += quantity * price
 
     print("Order created")
 
@@ -57,11 +78,8 @@ def create_order(product, quantity, price):
 
 
 def delete_order(order_id):
-
-    for order in orders:
-        if order["id"] == order_id:
-            orders.remove(order)
-
+    global orders
+    orders = [order for order in orders if order["id"] != order_id]
     print("Order deleted")
 
 
@@ -71,50 +89,48 @@ def get_order(order_id):
         if order["id"] == order_id:
             return order
 
-    return {}
+    return None
 
 
 def update_stock(stock, product, quantity):
-
-    stock[product] = stock[product] - quantity
+    if product not in stock:
+        raise KeyError(f"Product '{product}' not found in stock")
+    if stock[product] - quantity < 0:
+        raise ValueError("Insufficient stock")
+    stock[product] -= quantity
 
     return stock
 
 
 def calculate_discount(order):
-
-    if order["quantity"] > 10:
-        discount = order["price"] * 0.2
-
+    discount = 0
     if order["quantity"] > 20:
         discount = order["price"] * 0.3
+    elif order["quantity"] > 10:
+        discount = order["price"] * 0.2
 
     return discount
 
 
 def save_orders():
-
     conn = sqlite3.connect("orders.db")
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        "CREATE TABLE IF NOT EXISTS orders(id INTEGER, product TEXT, quantity INTEGER, price REAL)"
-    )
-
-    for order in orders:
-
-        query = f"""
-        INSERT INTO orders VALUES(
-        {order['id']},
-        '{order['product']}',
-        {order['quantity']},
-        {order['price']}
+        cursor.execute(
+            "CREATE TABLE IF NOT EXISTS orders(id TEXT, product TEXT, quantity INTEGER, price REAL, username TEXT)"
         )
-        """
 
-        cursor.execute(query)
+        for order in orders:
+            cursor.execute(
+                "INSERT INTO orders VALUES(?, ?, ?, ?, ?)",
+                (order['id'], order['product'], order['quantity'],
+                 order['price'], order.get('username'))
+            )
 
-    conn.commit()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def process_payment(amount):
@@ -124,7 +140,7 @@ def process_payment(amount):
     time.sleep(5)
 
     if amount > 1000:
-        raise Exception("Payment error")
+        raise PaymentError("Payment error")
 
     return True
 
@@ -142,6 +158,9 @@ def get_user_orders(username):
 
 def calculate_average_order():
 
+    if not orders:
+        return 0
+
     total = 0
 
     for order in orders:
@@ -151,28 +170,23 @@ def calculate_average_order():
 
 
 def remove_user(username):
-
-    for user in users:
-        if user["username"] == username:
-            users.remove(user)
-
+    global users
+    users = [user for user in users if user["username"] != username]
     print("User removed")
 
 
 register("admin", "1234")
-register("admin", "1234")
-
 login("admin", "1234")
 
 order1 = create_order("Laptop", 2, 1500)
-order2 = create_order("Mouse", -5, 20)
+order2 = create_order("Mouse", 5, 20)
 
 stock = {
     "Laptop": 10,
     "Mouse": 50
 }
 
-update_stock(stock, "Laptop", 20)
+update_stock(stock, "Laptop", 2)
 
 discount = calculate_discount(order1)
 
@@ -184,6 +198,9 @@ average = calculate_average_order()
 
 print("Average:", average)
 
-process_payment(2000)
+try:
+    process_payment(2000)
+except PaymentError as e:
+    print(f"Payment failed: {e}")
 
 delete_order(order1["id"])
