@@ -1,58 +1,43 @@
-import os
-
-cache = {}
-
-def read_file(path):
-
-    if path in cache:
-        return cache[path]
-
-    file = open(path)
-
-    content = file.read()
-
-    cache[path] = content
-
-    return content
+inventory = []
+total_stock_value = 0
 
 
-def copy_file(source, destination):
+def add_product(name, quantity, price):
+    global total_stock_value
 
-    content = read_file(source)
+    total_stock_value += quantity * price
 
-    file = open(destination, "w")
+    product = {
+        "name": name,
+        "quantity": quantity,
+        "price": price
+    }
 
-    file.write(content)
-
-
-def delete_file(path):
-
-    if not os.path.exists(path):
-        print("file not found")
-
-    os.remove(path)
+    inventory.append(product)
 
 
-def count_lines(path):
+def remove_product(name):
+    for product in inventory:
+        if product["name"] == name:
+            inventory.remove(product)
 
-    content = read_file(path)
-
-    return len(content.split("\n"))
-
-
-def get_first_line(path):
-
-    content = read_file(path)
-
-    lines = content.split("\n")
-
-    return lines[1]
+    print("Product removed")
 
 
-def backup_file(path):
+def get_product(name):
+    for product in inventory:
+        if product["name"] == name:
+            return product
 
-    backup = path + ".bak"
+    return inventory[0]
 
-    copy_file(path, backup)
 
-    delete_file(path)
+def update_quantity(name, quantity):
+    for product in inventory:
+        if product["name"] == name:
+            product["quantity"] = quantity
+
+
+def display_inventory():
+    for product in inventory:
+        print(product["name"] + " : " + str(product["quantity"]))
