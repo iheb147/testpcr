@@ -1,18 +1,32 @@
-import logging
-from inventory import load_items, add_item, total_value
-from auth import login
+from auth import *
+from inventory import *
+from utils import *
 
-logging.basicConfig(level=logging.INFO)
-logging.info("Loading app...")
-items = load_items()
 
-add_item("Laptop", 1200, 2)
-add_item("Mouse", 25, 5)
+register("admin", "1234")
 
-logging.info("Total: %s", total_value())
+login("admin", "1234")
 
-user = login("admin", "1234")
-if user:
-    logging.info("Logged: %s", user['username'])
-else:
-    logging.error("Login failed")
+add_product("Laptop", 10, 1500)
+
+add_product("Phone", -5, 800)
+
+add_product("Tablet", 3, -100)
+
+print(get_product("Unknown"))
+
+update_quantity("Laptop", -20)
+
+display_inventory()
+
+copy_file("data.txt", "backup.txt")
+
+delete_file("missing.txt")
+
+print(count_lines("backup.txt"))
+
+logout()
+
+logout()
+
+print(total_stock_value)
