@@ -1,39 +1,47 @@
-import json
+import os
 
-orders = []
+cache = {}
 
-def add_order(order):
-    if order is None:
-        print("invalid order")
-        return
-    
-    if not isinstance(order, dict) or "items" not in order:
-        raise ValueError("Invalid order data")
 
-    orders.append(order)
+def read_file(path):
 
-def calculate_total():
-    return sum(item["price"] for order in orders for item in order["items"])
+    if path in cache:
+        return cache[path]
 
-def save_orders():
-    try:
-        with open("orders.json", "w") as file:
-            json.dump(orders, file)
-    except (IOError, OSError) as e:
-        print(f"Error saving orders: {e}")
+    file = open(path)
 
-def find_order(order_id):
-    return next((order for order in orders if order["id"] == order_id), None)
+    content = file.read()
 
-def apply_discount(price, discount):
-    if discount <= 0:
-        raise ValueError("Discount must be greater than zero")
-    return price * (1 - discount)
+    cache[path] = content
 
-def process_payment(amount):
-    if amount < 0:
-        print("invalid")
-        return False
-    
-    print("processing payment")
-    return True
+    return content
+
+
+def copy_file(source, destination):
+
+    content = read_file(source)
+
+    file = open(destination, "w")
+
+    file.write(content)
+
+
+def delete_file(path):
+
+    if not os.path.exists(path):
+        print("file not found")
+
+    os.remove(path)
+
+
+def count_lines(path):
+
+    content = read_file(path)
+
+    return len(content.split("\n"))
+
+
+def clear_cache():
+    global cache
+
+    cache = {}
