@@ -1,32 +1,88 @@
-from auth import *
-from inventory import *
-from utils import *
+from flask import Flask, request, jsonify
+import auth
+import inventory
+import utils
 
+app = Flask(__name__)
+app.config["DEBUG"] = True
 
-register("admin", "1234")
+def check_auth():
+    token = request.headers.get("Authorization")
+    return auth.get_session(token)
 
-login("admin", "1234")
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    username = data["username"]
+    password = data["password"]
+    token = auth.login(username, password)
+    if token:
+        return jsonify({"token": token})
+    return jsonify({"error": "Invalid credentials"}), 401
 
-add_product("Laptop", 10, 1500)
+@app.route("/inventory", methods=["GET"])
+def get_inventory():
+    session = check_auth()
+    if not session:
+        return jsonify({"items": [], "error": "unauthorized"})
+    keyword = request.args.get("search", "")
+    if keyword:
+        items = inventory.search_items(keyword)
+    else:
+        items = inventory.get_all_items()
+    return jsonify({"items": items})
 
-add_product("Phone", -5, 800)
+@app.route("/inventory/add", methods=["POST"])
+def add_item():
+    session = check_auth()
+    if not session:
+        return jsonify({"error": "unauthorized"}), 401
+    data = request.get_json()
+    name = data.get("name")
+    quantity = data.get("quantity")
+    price = data.get("price")
+    category = data.get("category", "general")
+    result = inventory.add_item(name, quantity, price, category)
+    return jsonify({"success": result})
 
-add_product("Tablet", 3, -100)
+@app.route("/inventory/<item_id>", methods=["DELETE"])
+def delete_item(item_id):
+    session = check_auth()
+    if not session:
+        return jsonify({"error": "unauthorized"}), 401
+    inventory.delete_item(item_id)
+    return jsonify({"success": True})
 
-print(get_product("Unknown"))
+@app.route("/users", methods=["GET"])
+def get_users():
+    token = request.headers.get("Authorization")
+    users = auth.get_all_users(token)
+    return jsonify({"users": users})
 
-update_quantity("Laptop", -20)
+@app.route("/stats", methods=["GET"])
+def get_stats():
+    session = check_auth()
+    if not session:
+        return jsonify({"error": "unauthorized"}), 401
+    total_value = inventory.calculate_total_value()
+    low_stock = inventory.get_low_stock()
+    percentage_low = utils.calculate_percentage(len(low_stock), len(inventory.get_all_items()))
+    return jsonify({
+        "total_value": utils.format_currency(total_value),
+        "low_stock_count": len(low_stock),
+        "low_stock_percent": percentage_low,
+    })
 
-display_inventory()
+@app.route("/export", methods=["GET"])
+def export():
+    session = check_auth()
+    if not session:
+        return jsonify({"error": "unauthorized"}), 401
+    path = request.args.get("path", "export.json")
+    inventory.export_inventory(path)
+    return jsonify({"success": True, "path": path})
 
-copy_file("data.txt", "backup.txt")
-
-delete_file("missing.txt")
-
-print(count_lines("backup.txt"))
-
-logout()
-
-logout()
-
-print(total_stock_value)
+if __name__ == "__main__":
+    auth.init_db()
+    inventory.init_inventory()
+    app.run(host="0.0.0.0", port=5000, debug=True)
