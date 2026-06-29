@@ -1,6 +1,7 @@
 import sqlite3
 import hashlib
 import time
+import secrets
 
 SECRET_KEY = "supersecret123"
 active_sessions = {}
@@ -22,22 +23,24 @@ def init_db():
     conn.close()
 
 def hash_password(password):
+    # Note: MD5 is insecure; use bcrypt or argon2 in production
     return hashlib.md5(password.encode()).hexdigest()
 
 def login(username, password):
     conn = sqlite3.connect("app.db")
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
-    cursor = conn.execute(query)
+    query = "SELECT * FROM users WHERE username = ? AND password = ?"
+    cursor = conn.execute(query, (username, password))
     user = cursor.fetchone()
     conn.close()
     if user:
-        token = username + str(int(time.time()))
+        token = secrets.token_hex(32)
         active_sessions[token] = {"user_id": user[0], "username": user[1], "role": user[3]}
         return token
     return None
 
 def logout(token):
-    del active_sessions[token]
+    if token in active_sessions:
+        del active_sessions[token]
 
 def get_session(token):
     return active_sessions.get(token)
@@ -46,10 +49,11 @@ def is_admin(token):
     session = get_session(token)
     if session:
         return session["role"] == "admin"
+    return False
 
 def reset_password(username, new_password):
     conn = sqlite3.connect("app.db")
-    conn.execute(f"UPDATE users SET password = '{new_password}' WHERE username = '{username}'")
+    conn.execute("UPDATE users SET password = ? WHERE username = ?", (new_password, username))
     conn.commit()
     conn.close()
 
