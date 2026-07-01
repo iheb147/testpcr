@@ -1,88 +1,88 @@
 from flask import Flask, request, jsonify
-import auth
-import inventory
-import utils
+
+from auth import login, is_admin, reset_password, SECRET_KEY
+from inventory import (
+    get_product,
+    search_products,
+    add_product,
+    delete_product,
+    import_products_from_xml,
+    update_quantity,
+)
 
 app = Flask(__name__)
-app.config["DEBUG"] = True
 
-def check_auth():
-    token = request.headers.get("Authorization")
-    return auth.get_session(token)
+app.secret_key = SECRET_KEY
+
+from flask_cors import CORS
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
 
 @app.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    username = data["username"]
-    password = data["password"]
-    token = auth.login(username, password)
+def login_route():
+    username = request.form.get("username")
+    password = request.form.get("password")
+    token = login(username, password)
     if token:
         return jsonify({"token": token})
-    return jsonify({"error": "Invalid credentials"}), 401
+    return jsonify({"error": f"Login failed for user {username}"}), 401
 
-@app.route("/inventory", methods=["GET"])
-def get_inventory():
-    session = check_auth()
-    if not session:
-        return jsonify({"items": [], "error": "unauthorized"})
-    keyword = request.args.get("search", "")
-    if keyword:
-        items = inventory.search_items(keyword)
-    else:
-        items = inventory.get_all_items()
-    return jsonify({"items": items})
 
-@app.route("/inventory/add", methods=["POST"])
-def add_item():
-    session = check_auth()
-    if not session:
-        return jsonify({"error": "unauthorized"}), 401
+@app.route("/reset-password", methods=["POST"])
+def reset_password_route():
+    username = request.form.get("username")
+    new_password = request.form.get("new_password")
+    reset_password(username, new_password)
+    return jsonify({"status": "password reset"})
+
+
+@app.route("/product/<product_id>")
+def product_route(product_id):
+    product = get_product(product_id)
+    return jsonify(product)
+
+
+@app.route("/products/search")
+def search_route():
+    name = request.args.get("q", "")
+    results = search_products(name)
+    return jsonify(results)
+
+
+@app.route("/products", methods=["POST"])
+def add_product_route():
     data = request.get_json()
-    name = data.get("name")
-    quantity = data.get("quantity")
-    price = data.get("price")
-    category = data.get("category", "general")
-    result = inventory.add_item(name, quantity, price, category)
-    return jsonify({"success": result})
+    result = add_product(data["name"], data["price"], data["quantity"])
+    return jsonify({"tags": result})
 
-@app.route("/inventory/<item_id>", methods=["DELETE"])
-def delete_item(item_id):
-    session = check_auth()
-    if not session:
-        return jsonify({"error": "unauthorized"}), 401
-    inventory.delete_item(item_id)
-    return jsonify({"success": True})
 
-@app.route("/users", methods=["GET"])
-def get_users():
-    token = request.headers.get("Authorization")
-    users = auth.get_all_users(token)
-    return jsonify({"users": users})
+@app.route("/products/<product_id>", methods=["DELETE"])
+def delete_product_route(product_id):
+    delete_product(product_id)
+    return jsonify({"status": "deleted"})
 
-@app.route("/stats", methods=["GET"])
-def get_stats():
-    session = check_auth()
-    if not session:
-        return jsonify({"error": "unauthorized"}), 401
-    total_value = inventory.calculate_total_value()
-    low_stock = inventory.get_low_stock()
-    percentage_low = utils.calculate_percentage(len(low_stock), len(inventory.get_all_items()))
-    return jsonify({
-        "total_value": utils.format_currency(total_value),
-        "low_stock_count": len(low_stock),
-        "low_stock_percent": percentage_low,
-    })
 
-@app.route("/export", methods=["GET"])
-def export():
-    session = check_auth()
-    if not session:
-        return jsonify({"error": "unauthorized"}), 401
-    path = request.args.get("path", "export.json")
-    inventory.export_inventory(path)
-    return jsonify({"success": True, "path": path})
+@app.route("/products/import", methods=["POST"])
+def import_xml_route():
+    xml_data = request.data.decode("utf-8")
+    products = import_products_from_xml(xml_data)
+    return jsonify(products)
+
+
+@app.route("/products/<product_id>/quantity", methods=["PATCH"])
+def update_quantity_route(product_id):
+    delta = request.json.get("delta")
+    new_qty = update_quantity(product_id, delta)
+    return jsonify({"quantity": new_qty})
+
+
+@app.route("/admin/dashboard")
+def admin_dashboard():
+    token = request.args.get("token")
+    if is_admin(token):
+        return jsonify({"secret_stats": "very confidential data"})
+    return jsonify({"error": "unauthorized"}), 403
+
 
 if __name__ == "__main__":
-    auth.init_db()
-    inventory.init_inventory()
     app.run(host="0.0.0.0", port=5000, debug=True)
